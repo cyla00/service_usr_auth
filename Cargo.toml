@@ -1,0 +1,17 @@
+[package]
+name = "service_usr_auth"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+axum = "0.6.20"
+jsonwebtoken = "8.3.0"
+mongodb = "2.7.0"
+serde = "1.0.188"
+tokio = { version = "1.33.0", features = ["full"] }
+tower = "0.4.13"
+tracing = "0.1"
+tracing-subscriber = "0.2.0"
+uuid = "1.4.1"
