@@ -270,6 +270,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "common_regex_rs"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ccccb31a1f5a741deea2bc828144d05106ae3db482a36b91a05c06bec4cdaa8"
+dependencies = [
+ "regex",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1403,6 +1412,7 @@ dependencies = [
  "argon2",
  "axum",
  "base64 0.21.4",
+ "common_regex_rs",
  "jsonwebtoken",
  "mongodb",
  "serde",

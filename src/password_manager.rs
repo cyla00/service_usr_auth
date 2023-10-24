@@ -17,7 +17,7 @@ pub fn password_hashing(_password: String) -> (String, SaltString) {
     (base_password.to_string(), salt.clone())
 }
 
-pub fn password_verification_hashing(_old_password: String, old_salt: String, _new_password: String) -> bool {
+pub fn password_hash_verification(_old_password: String, old_salt: String, _new_password: String) -> bool {
     let argon2 = Argon2::default();
     let salt = SaltString::from_b64(&old_salt.as_ref()).unwrap();
     let hashed_new_password = argon2.hash_password(b"{_new_password}", &salt).unwrap().to_string();
