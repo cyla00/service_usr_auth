@@ -1,33 +1,29 @@
 use argon2::{
     password_hash::{
         rand_core::OsRng,
-        PasswordHasher, SaltString,
+        PasswordHash, PasswordHasher, SaltString, PasswordVerifier,
     },
     Argon2
 };
 use base64::{Engine as _, engine::general_purpose};
 
-pub fn password_hashing(_password: String) -> (String, SaltString) {
 
-    let argon2 = Argon2::default();
+pub fn password_hashing(password: String) -> (String, SaltString) {
     let salt = SaltString::generate(&mut OsRng);
-
-    println!("original salt: {}", salt);
-
-    let hashed_password = argon2.hash_password(b"{_password}", &salt).unwrap().to_string();
-    let base_password = general_purpose::STANDARD_NO_PAD.encode(hashed_password);
-
-    println!("original pass: {}", base_password);
-
-    (base_password.to_string(), salt.clone())
+    let hashed_password = Argon2::default().hash_password(&password.as_bytes(), &salt).unwrap().to_string();
+    let encoded_pass: String = general_purpose::STANDARD_NO_PAD.encode(hashed_password);
+    (encoded_pass.to_string(), salt.clone())
 }
 
-pub fn password_hash_from_salt(password: String, salt: String) -> String {
-    let argon2 = Argon2::default();
-    let salted = SaltString::from_b64(&salt.as_ref()).unwrap();
+pub fn password_verification(old_password: String, new_password: String) -> bool {
 
-    println!("new salt {}", salted);
+    let decoded_old_pass = general_purpose::STANDARD_NO_PAD.decode(&old_password).unwrap();
+    let old_str_pass = String::from_utf8(decoded_old_pass).unwrap();
+    let old_pass_hash = PasswordHash::new(&old_str_pass).unwrap();
+    let pass_verification = Argon2::default().verify_password(&new_password.as_bytes(), &old_pass_hash);
 
-    let hashed_password = argon2.hash_password(b"{password}", &salted).unwrap().to_string();
-    return general_purpose::STANDARD_NO_PAD.encode(hashed_password);
+    match pass_verification {
+        Ok(_) => return true,
+        Err(_) => return false,
+    }
 }

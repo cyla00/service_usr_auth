@@ -1,5 +1,5 @@
 use crate::structs::{RegistrationStruct, UserStruct, TokenClaimStruct, TokenStruct, ErrMsgStruct, SuccMsgStruct};
-use crate::password_manager::{password_hashing, password_hash_from_salt};
+use crate::password_manager::{password_hashing, password_verification};
 
 use axum::{
     http::StatusCode,
@@ -35,39 +35,59 @@ pub async fn route_login(State(db): State<Database>, TypedHeader(auth): TypedHea
             return (StatusCode::UNAUTHORIZED, Err(Json(err_msg)))
         }
         Ok(Some(user)) => {
-            let password = password_hash_from_salt(auth.password().to_string(), user.salt);
+            let password = password_verification(user.password, auth.password().to_string());
 
-            println!("{}", password);
-            
-            match db_collection.find_one(doc! {"email": email, "password": password}, None).await {
-                Err(_) => {
-                    let err_msg = ErrMsgStruct {
-                        err_msg: "An error occurred, please retry later".to_string()
-                    };
-                    return (StatusCode::BAD_GATEWAY, Err(Json(err_msg)))
-                }
-                Ok(None) => {
-                    let err_msg = ErrMsgStruct {
-                        err_msg: "Incorrect credentials".to_string()
-                    };
-                    return (StatusCode::UNAUTHORIZED, Err(Json(err_msg)))
-                }
-                Ok(Some(user)) => {
-                    let claims: TokenClaimStruct = TokenClaimStruct {
-                        id: user.id.to_string(),
-                        exp: 12345,
-                        iss: "ikwebdev".to_string(),
-                    };
-        
-
-                    let token: TokenStruct = TokenStruct {
-                        token: encode(&Header::default(), &claims, &EncodingKey::from_secret("secret".as_ref())).unwrap(),
-                        succ_msg: "Login successful".to_string(),
-                    };
-        
-                    (StatusCode::CREATED, Ok(Json(token)))
-                }
+            if !password {
+                let err_msg = ErrMsgStruct {
+                    err_msg: "Incorrect credentials".to_string()
+                };
+                return (StatusCode::UNAUTHORIZED, Err(Json(err_msg)))
             }
+            else {
+                let claims: TokenClaimStruct = TokenClaimStruct {
+                    id: user.id.to_string(),
+                    exp: 12345,
+                    iss: "ikwebdev".to_string(),
+                };
+    
+
+                let token: TokenStruct = TokenStruct {
+                    token: encode(&Header::default(), &claims, &EncodingKey::from_secret("secret".as_ref())).unwrap(),
+                    succ_msg: "Login successful".to_string(),
+                };
+    
+                (StatusCode::CREATED, Ok(Json(token)))
+            }
+            
+            // match db_collection.find_one(doc! {"email": email, "password": password}, None).await {
+            //     Err(_) => {
+            //         let err_msg = ErrMsgStruct {
+            //             err_msg: "An error occurred, please retry later".to_string()
+            //         };
+            //         return (StatusCode::BAD_GATEWAY, Err(Json(err_msg)))
+            //     }
+            //     Ok(None) => {
+            //         let err_msg = ErrMsgStruct {
+            //             err_msg: "Incorrect credentials".to_string()
+            //         };
+            //         return (StatusCode::UNAUTHORIZED, Err(Json(err_msg)))
+            //     }
+            //     Ok(Some(user)) => {
+            //         let claims: TokenClaimStruct = TokenClaimStruct {
+            //             id: user.id.to_string(),
+            //             exp: 12345,
+            //             iss: "ikwebdev".to_string(),
+            //         };
+        
+
+            //         let token: TokenStruct = TokenStruct {
+            //             token: encode(&Header::default(), &claims, &EncodingKey::from_secret("secret".as_ref())).unwrap(),
+            //             succ_msg: "Login successful".to_string(),
+            //         };
+        
+            //         (StatusCode::CREATED, Ok(Json(token)))
+            //     }
+            // }
         }
     }
 }
