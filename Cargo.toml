@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 argon2 = "0.5.2"
-axum = "0.6.20"
+axum = { version = "0.6.20", features = ["headers"] }
 base64 = "0.21.4"
 common_regex_rs = "0.1.0"
 jsonwebtoken = "8.3.0"

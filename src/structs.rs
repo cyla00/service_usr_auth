@@ -6,21 +6,34 @@ pub struct RegistrationStruct{
     pub password: String,
 }
 
-#[derive(Deserialize, Clone)]
-pub struct LoginStruct {
-    pub email: String,
-    pub password: String,
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UserStruct{
     pub id: String,
     pub email: String,
     pub password: String,
     pub salt: String,
+    pub role: String,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct TokenStruct {
     pub token: String,
+    pub succ_msg: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TokenClaimStruct {
+    pub id: String,
+    pub exp: usize,
+    pub iss: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ErrMsgStruct {
+    pub err_msg: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SuccMsgStruct {
+    pub succ_msg: String,
 }

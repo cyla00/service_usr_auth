@@ -1,27 +1,91 @@
-use crate::structs::{RegistrationStruct, LoginStruct, UserStruct, TokenStruct};
-use crate::password_manager::{password_hashing, password_hash_verification};
+use crate::structs::{RegistrationStruct, UserStruct, TokenClaimStruct, TokenStruct, ErrMsgStruct, SuccMsgStruct};
+use crate::password_manager::{password_hashing, password_hash_from_salt};
 
 use axum::{
     http::StatusCode,
-    Json, extract::State,
+    Json, 
+    extract::{State, TypedHeader},
+    headers::{Authorization, authorization::Basic},
 };
-use common_regex_rs::*;
-#[allow(unused_imports)]
-use mongodb::{Client, options::ClientOptions, error::Result, bson::doc, Database};
-use uuid::Uuid;
 
-pub async fn route_login(State(_db): State<Database>, _payload: Json<LoginStruct>) -> (StatusCode, &'static str) {
-    (StatusCode::CREATED, "Login Successful")
+use common_regex_rs::*;
+use mongodb::Collection;
+use mongodb::{bson::doc, Database};
+use uuid::Uuid;
+use jsonwebtoken::{encode, Header, EncodingKey};
+
+pub async fn route_login(State(db): State<Database>, TypedHeader(auth): TypedHeader<Authorization<Basic>>) -> (StatusCode, Result<Json<TokenStruct>, Json<ErrMsgStruct>>) {
+    let collection_name:&str = "users";
+
+    let email = auth.username().to_string();
+
+    let db_collection:Collection<UserStruct> = db.collection(collection_name);
+
+    match db_collection.find_one(doc! {"email": &email}, None).await {
+        Err(_) => {
+            let err_msg = ErrMsgStruct {
+                err_msg: "An error occurred, please retry later".to_string()
+            };
+            return (StatusCode::BAD_GATEWAY, Err(Json(err_msg)))
+        }
+        Ok(None) => {
+            let err_msg = ErrMsgStruct {
+                err_msg: "Incorrect credentials".to_string()
+            };
+            return (StatusCode::UNAUTHORIZED, Err(Json(err_msg)))
+        }
+        Ok(Some(user)) => {
+            let password = password_hash_from_salt(auth.password().to_string(), user.salt);
+
+            println!("{}", password);
+            
+            match db_collection.find_one(doc! {"email": email, "password": password}, None).await {
+                Err(_) => {
+                    let err_msg = ErrMsgStruct {
+                        err_msg: "An error occurred, please retry later".to_string()
+                    };
+                    return (StatusCode::BAD_GATEWAY, Err(Json(err_msg)))
+                }
+                Ok(None) => {
+                    let err_msg = ErrMsgStruct {
+                        err_msg: "Incorrect credentials".to_string()
+                    };
+                    return (StatusCode::UNAUTHORIZED, Err(Json(err_msg)))
+                }
+                Ok(Some(user)) => {
+                    let claims: TokenClaimStruct = TokenClaimStruct {
+                        id: user.id.to_string(),
+                        exp: 12345,
+                        iss: "ikwebdev".to_string(),
+                    };
+        
+
+                    let token: TokenStruct = TokenStruct {
+                        token: encode(&Header::default(), &claims, &EncodingKey::from_secret("secret".as_ref())).unwrap(),
+                        succ_msg: "Login successful".to_string(),
+                    };
+        
+                    (StatusCode::CREATED, Ok(Json(token)))
+                }
+            }
+        }
+    }
 }
 
-pub async fn route_registration(State(db): State<Database>, Json(payload): Json<RegistrationStruct>) -> (StatusCode, &'static str) {
+pub async fn route_registration(State(db): State<Database>, Json(payload): Json<RegistrationStruct>) -> (StatusCode, Result<Json<SuccMsgStruct>, Json<ErrMsgStruct>>) {
 
     if payload.email.is_empty() | !is_email(&payload.email) {
-        return (StatusCode::BAD_REQUEST, "Provide a valid email")
+        let err_msg: ErrMsgStruct = ErrMsgStruct {
+            err_msg: "Provide a valid email".to_string()
+        };
+        return (StatusCode::BAD_REQUEST, Err(Json(err_msg)))
     }
 
     if payload.password.is_empty() | !is_good_password(&payload.password) {
-        return (StatusCode::BAD_REQUEST, "Provide a valid and strong password")
+        let err_msg: ErrMsgStruct = ErrMsgStruct {
+            err_msg: "Provide a valid and strong password".to_string()
+        };
+        return (StatusCode::BAD_REQUEST, Err(Json(err_msg)))
     }
 
     let collection_name:&str = "users";
@@ -32,15 +96,36 @@ pub async fn route_registration(State(db): State<Database>, Json(payload): Json<
         email: payload.email,
         password: hashed_password.0,
         salt: hashed_password.1.to_string(),
+        role: "user".to_string(),
     };
     let db_collection = db.collection(collection_name);
-    match db_collection.find_one(doc! {"email": &user.email}, None).await {
-        Err(_) => return (StatusCode::BAD_GATEWAY, "An error occurred, please retry later"),
-        Ok(Some(_)) => return (StatusCode::BAD_REQUEST, "You are already registered, connect to your account"),
+    match db_collection.find_one(doc! {"email": user.email.clone()}, None).await {
+        Err(_) => {
+            let err_msg: ErrMsgStruct = ErrMsgStruct {
+                err_msg: "An error occurred, please retry later".to_string()
+            };
+            return (StatusCode::BAD_GATEWAY, Err(Json(err_msg)))
+        }
+        Ok(Some(_)) => {
+            let err_msg: ErrMsgStruct = ErrMsgStruct {
+                err_msg: "You are already registered, connect to your account".to_string()
+            };
+            return (StatusCode::BAD_REQUEST, Err(Json(err_msg)))
+        }
         Ok(None) => {
             match db_collection.insert_one(user, None).await {
-                Err(_) => return (StatusCode::BAD_GATEWAY, "An error occurred, please retry later"),
-                Ok(_) => return (StatusCode::CREATED, "Successfully registered")
+                Err(_) => {
+                    let err_msg: ErrMsgStruct = ErrMsgStruct {
+                        err_msg: "An error occurred, please retry later".to_string()
+                    };
+                    return (StatusCode::BAD_GATEWAY, Err(Json(err_msg)))
+                }
+                Ok(_) => {
+                    let succ_msg: SuccMsgStruct = SuccMsgStruct {
+                        succ_msg: "Successfully registered".to_string()
+                    };
+                    return (StatusCode::CREATED, Ok(Json(succ_msg)))
+                }
             }
         }
     }
