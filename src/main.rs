@@ -1,6 +1,7 @@
 mod routes;
 mod structs;
 mod password_manager;
+mod jwt_verification;
 
 #[allow(unused_imports)]
 use axum::{routing::{get, post, delete, put}, Router, extract::State};
@@ -21,6 +22,7 @@ async fn main() {
     let app = Router::new()
         .route("/login", post(routes::route_login))
         .route("/registration", post(routes::route_registration))
+        .route("/test", post(routes::test_jwt))
         .with_state(db);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));

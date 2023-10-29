@@ -15,7 +15,7 @@ pub struct UserStruct{
     pub role: String,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TokenStruct {
     pub token: String,
     pub succ_msg: String,
@@ -24,7 +24,7 @@ pub struct TokenStruct {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TokenClaimStruct {
     pub id: String,
-    pub exp: usize,
+    pub exp: u64,
     pub iss: String,
 }
 

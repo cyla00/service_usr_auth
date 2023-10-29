@@ -1,6 +1,8 @@
 use crate::structs::{RegistrationStruct, UserStruct, TokenClaimStruct, TokenStruct, ErrMsgStruct, SuccMsgStruct};
 use crate::password_manager::{password_hashing, password_verification};
+use crate::jwt_verification::jwt_verification;
 
+use axum::headers::authorization::Bearer;
 use axum::{
     http::StatusCode,
     Json, 
@@ -12,9 +14,12 @@ use common_regex_rs::*;
 use mongodb::Collection;
 use mongodb::{bson::doc, Database};
 use uuid::Uuid;
-use jsonwebtoken::{encode, Header, EncodingKey};
+use jsonwebtoken::{encode, Header, EncodingKey, get_current_timestamp};
+use dotenv::dotenv;
+use std::env;
 
 pub async fn route_login(State(db): State<Database>, TypedHeader(auth): TypedHeader<Authorization<Basic>>) -> (StatusCode, Result<Json<TokenStruct>, Json<ErrMsgStruct>>) {
+    
     let collection_name:&str = "users";
 
     let email = auth.username().to_string();
@@ -44,51 +49,25 @@ pub async fn route_login(State(db): State<Database>, TypedHeader(auth): TypedHea
                 return (StatusCode::UNAUTHORIZED, Err(Json(err_msg)))
             }
             else {
+
+                let token_expiration = get_current_timestamp() + 10 * 1000;
+
                 let claims: TokenClaimStruct = TokenClaimStruct {
                     id: user.id.to_string(),
-                    exp: 12345,
+                    exp: token_expiration,
                     iss: "ikwebdev".to_string(),
                 };
     
-
+                dotenv().ok();
+                let sec_ = env::var("SEC_").unwrap();
                 let token: TokenStruct = TokenStruct {
-                    token: encode(&Header::default(), &claims, &EncodingKey::from_secret("secret".as_ref())).unwrap(),
+                    token: encode(&Header::default(), &claims, &EncodingKey::from_secret(&sec_.as_bytes())).unwrap(),
                     succ_msg: "Login successful".to_string(),
                 };
-    
+
                 (StatusCode::CREATED, Ok(Json(token)))
             }
-            
-            // match db_collection.find_one(doc! {"email": email, "password": password}, None).await {
-            //     Err(_) => {
-            //         let err_msg = ErrMsgStruct {
-            //             err_msg: "An error occurred, please retry later".to_string()
-            //         };
-            //         return (StatusCode::BAD_GATEWAY, Err(Json(err_msg)))
-            //     }
-            //     Ok(None) => {
-            //         let err_msg = ErrMsgStruct {
-            //             err_msg: "Incorrect credentials".to_string()
-            //         };
-            //         return (StatusCode::UNAUTHORIZED, Err(Json(err_msg)))
-            //     }
-            //     Ok(Some(user)) => {
-            //         let claims: TokenClaimStruct = TokenClaimStruct {
-            //             id: user.id.to_string(),
-            //             exp: 12345,
-            //             iss: "ikwebdev".to_string(),
-            //         };
-        
-
-            //         let token: TokenStruct = TokenStruct {
-            //             token: encode(&Header::default(), &claims, &EncodingKey::from_secret("secret".as_ref())).unwrap(),
-            //             succ_msg: "Login successful".to_string(),
-            //         };
-        
-            //         (StatusCode::CREATED, Ok(Json(token)))
-            //     }
-            // }
-        }
+        } 
     }
 }
 
@@ -148,5 +127,14 @@ pub async fn route_registration(State(db): State<Database>, Json(payload): Json<
                 }
             }
         }
+    }
+}
+
+pub async fn test_jwt(TypedHeader(auth): TypedHeader<Authorization<Bearer>>) -> StatusCode {
+    let token = auth.token();
+    let verification = jwt_verification(token.to_string());
+    match verification {
+        Ok(_) => StatusCode::OK,
+        Err(_) => StatusCode::UNAUTHORIZED,
     }
 }

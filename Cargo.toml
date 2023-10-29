@@ -10,6 +10,8 @@ argon2 = "0.5.2"
 axum = { version = "0.6.20", features = ["headers"] }
 base64 = "0.21.4"
 common_regex_rs = "0.1.0"
+dotenv = "0.15.0"
+dotenv_codegen = "0.15.0"
 jsonwebtoken = "8.3.0"
 mongodb = "2.7.0"
 serde = "1.0.188"
