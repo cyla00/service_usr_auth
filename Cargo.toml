@@ -16,6 +16,7 @@ jsonwebtoken = "8.3.0"
 mongodb = "2.7.0"
 serde = "1.0.188"
 tokio = { version = "1.33.0", features = ["full"] }
+toml = "0.8.6"
 tower = "0.4.13"
 tracing = "0.1"
 tracing-subscriber = "0.2.0"

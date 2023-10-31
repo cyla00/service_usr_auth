@@ -8,12 +8,21 @@ use axum::{routing::{get, post, delete, put}, Router, extract::State};
 use std::net::SocketAddr;
 #[allow(unused_imports)]
 use mongodb::{Client, options::ClientOptions, error::Result, bson::doc, Database};
+use dotenv::dotenv;
+use std::env;
+
+#[allow(unused_imports)]
+use toml;
 
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
+    let _db_host = env::var("DB_HOST").unwrap();
+    let _db_port = env::var("DB_PORT").unwrap();
+    let _db_name = env::var("DB_NAME").unwrap();
 
-    let client = Client::with_uri_str("mongodb://localhost:27017").await.unwrap();
-    let db = client.database("testDb");
+    let client = Client::with_uri_str(format!("mongodb://{_db_host}:{_db_port}")).await.unwrap();
+    let db = client.database("{_db_name}");
     println!("database connected");
     
     tracing_subscriber::fmt::init();
