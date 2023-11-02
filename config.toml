@@ -1,2 +1,5 @@
 [config]
 enable_smtp=false
+
+[test]
+test_content='test'

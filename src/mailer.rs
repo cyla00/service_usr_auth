@@ -2,15 +2,14 @@ use lettre::message::header::ContentType;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
 
-pub async fn send_registration_email(auth_email: String, auth_pass: String, auth_host: String){
+pub async fn send_registration_email(auth_email: String, auth_pass: String, auth_host: String, user_email: String, platform_name: String) -> bool {
 
     let email = Message::builder()
-        .from("NoBody <nobody@domain.tld>".parse().unwrap())
-        .reply_to("Yuin <yuin@domain.tld>".parse().unwrap())
-        .to("Hei <hei@domain.tld>".parse().unwrap())
-        .subject("Happy new year")
+        .from(format!("{} <{}>", platform_name, auth_email).parse().unwrap())
+        .to(format!("<{}>", user_email).parse().unwrap())
+        .subject("Welcome to platform...")
         .header(ContentType::TEXT_PLAIN)
-        .body(String::from("Be happy!"))
+        .body(String::from("Registration succesfull"))
         .unwrap();
 
     let creds = Credentials::new(auth_email, auth_pass);
@@ -23,7 +22,7 @@ pub async fn send_registration_email(auth_email: String, auth_pass: String, auth
 
     // Send the email
     match mailer.send(&email) {
-        Ok(_) => println!("Email sent successfully!"),
-        Err(e) => panic!("Could not send email: {e:?}"),
+        Ok(_) => true,
+        Err(_) => false,
     }
 }

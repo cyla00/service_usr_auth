@@ -1,6 +1,7 @@
 use crate::structs::{RegistrationStruct, UserStruct, TokenClaimStruct, TokenStruct, ErrMsgStruct, SuccMsgStruct};
 use crate::password_manager::{password_hashing, password_verification};
 use crate::jwt_verification::jwt_verification;
+use crate::mailer::{send_registration_email};
 
 use axum::headers::authorization::Bearer;
 use axum::{
@@ -73,7 +74,7 @@ pub async fn route_login(State(db): State<Database>, TypedHeader(auth): TypedHea
 
 pub async fn route_registration(State(db): State<Database>, Json(payload): Json<RegistrationStruct>) -> (StatusCode, Result<Json<SuccMsgStruct>, Json<ErrMsgStruct>>) {
 
-    if payload.email.is_empty() | !is_email(&payload.email) {
+    if &payload.email.is_empty() | !is_email(&payload.email) {
         let err_msg: ErrMsgStruct = ErrMsgStruct {
             err_msg: "Provide a valid email".to_string()
         };
@@ -92,7 +93,7 @@ pub async fn route_registration(State(db): State<Database>, Json(payload): Json<
     let new_user_id:Uuid = Uuid::new_v4();
     let user: UserStruct = UserStruct {
         id: new_user_id.to_string(),
-        email: payload.email,
+        email: payload.email.clone(),
         password: hashed_password.0,
         salt: hashed_password.1.to_string(),
         role: "user".to_string(),
@@ -120,6 +121,18 @@ pub async fn route_registration(State(db): State<Database>, Json(payload): Json<
                     return (StatusCode::BAD_GATEWAY, Err(Json(err_msg)))
                 }
                 Ok(_) => {
+                    let platform_name = env::var("PLATFORM_NAME").unwrap();
+                    let email_auth_host = env::var("EMAIL_CLIENT_HOST").unwrap();
+                    let auth_email_user = env::var("EMAIL_CLIENT_USER").unwrap();
+                    let email_auth_pass = env::var("EMAIL_CLIENT_PASS").unwrap();
+                    let mailer = send_registration_email(auth_email_user, email_auth_pass, email_auth_host, payload.email, platform_name).await;
+    
+                    if !mailer {
+                        let err_msg: ErrMsgStruct = ErrMsgStruct {
+                            err_msg: "An error occurred, please retry later".to_string()
+                        };
+                        return (StatusCode::BAD_GATEWAY, Err(Json(err_msg)))
+                    }
                     let succ_msg: SuccMsgStruct = SuccMsgStruct {
                         succ_msg: "Successfully registered".to_string()
                     };
