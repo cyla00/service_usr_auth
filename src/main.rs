@@ -51,7 +51,7 @@ async fn main() {
     let app = Router::new()
         .route("/login", post(routes::route_login))
         .route("/registration", post(routes::route_registration))
-        .route("/test", post(routes::test_jwt))
+        .route("/test", post(routes::jwt_auth))
         .with_state(db);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));

@@ -1,2 +1,9 @@
-# service_usr_auth
-### user authentication, authorization, registration microservice API
+## User Auth API
+written in Rust:
+
+- User authentication
+- User authorization
+- Registration
+- Login
+- Email verification
+- JWT verification

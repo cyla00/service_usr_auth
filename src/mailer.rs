@@ -2,7 +2,7 @@ use lettre::message::header::ContentType;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
 
-pub async fn send_registration_email(auth_email: String, auth_pass: String, auth_host: String, user_email: String, platform_name: String) -> bool {
+pub async fn send_registration_email(auth_email: String, auth_pass: String, auth_host: String, user_email: String, platform_name: String) -> Result<bool, bool> {
 
     let email = Message::builder()
         .from(format!("{} <{}>", platform_name, auth_email).parse().unwrap())
@@ -22,7 +22,7 @@ pub async fn send_registration_email(auth_email: String, auth_pass: String, auth
 
     // Send the email
     match mailer.send(&email) {
-        Ok(_) => true,
-        Err(_) => false,
+        Ok(_) => Ok(true),
+        Err(_) => Err(false),
     }
 }

@@ -127,23 +127,27 @@ pub async fn route_registration(State(db): State<Database>, Json(payload): Json<
                     let email_auth_pass = env::var("EMAIL_CLIENT_PASS").unwrap();
                     let mailer = send_registration_email(auth_email_user, email_auth_pass, email_auth_host, payload.email, platform_name).await;
     
-                    if !mailer {
-                        let err_msg: ErrMsgStruct = ErrMsgStruct {
-                            err_msg: "An error occurred, please retry later".to_string()
-                        };
-                        return (StatusCode::BAD_GATEWAY, Err(Json(err_msg)))
+                    match mailer {
+                        Ok(_) => {
+                            let succ_msg: SuccMsgStruct = SuccMsgStruct {
+                                succ_msg: "Successfully registered".to_string()
+                            };
+                            return (StatusCode::CREATED, Ok(Json(succ_msg)))
+                        },
+                        Err(_) => {
+                            let err_msg: ErrMsgStruct = ErrMsgStruct {
+                                err_msg: "An error occurred, please retry later".to_string()
+                            };
+                            return (StatusCode::BAD_GATEWAY, Err(Json(err_msg)))
+                        }
                     }
-                    let succ_msg: SuccMsgStruct = SuccMsgStruct {
-                        succ_msg: "Successfully registered".to_string()
-                    };
-                    return (StatusCode::CREATED, Ok(Json(succ_msg)))
                 }
             }
         }
     }
 }
 
-pub async fn test_jwt(TypedHeader(auth): TypedHeader<Authorization<Bearer>>) -> StatusCode {
+pub async fn jwt_auth(TypedHeader(auth): TypedHeader<Authorization<Bearer>>) -> StatusCode {
     let token = auth.token();
     let verification = jwt_verification(token.to_string());
     match verification {
