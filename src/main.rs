@@ -2,6 +2,7 @@ mod routes;
 mod structs;
 mod password_manager;
 mod jwt_verification;
+mod mailer;
 
 #[allow(unused_imports)]
 use axum::{routing::{get, post, delete, put}, Router, extract::State};
