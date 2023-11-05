@@ -2,14 +2,25 @@ use lettre::message::header::ContentType;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
 
-pub async fn send_registration_email(auth_email: String, auth_pass: String, auth_host: String, user_email: String, platform_name: String) -> Result<bool, bool> {
+pub async fn user_verification_email(
+    auth_email: String, 
+    auth_pass: String, 
+    auth_host: String, 
+    user_email: String, 
+    platform_name: String, 
+    user_hash: String, 
+    platform_host: String
+) -> Result<bool, bool> {
 
     let email = Message::builder()
         .from(format!("{} <{}>", platform_name, auth_email).parse().unwrap())
         .to(format!("<{}>", user_email).parse().unwrap())
         .subject("Welcome to platform...")
         .header(ContentType::TEXT_PLAIN)
-        .body(String::from("Registration succesfull"))
+        .body(format!("
+            welcome, please verify your account before connecting.
+            <a href='http://{platform_host}/{user_hash}'>verify here!</a>
+        "))
         .unwrap();
 
     let creds = Credentials::new(auth_email, auth_pass);

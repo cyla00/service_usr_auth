@@ -30,10 +30,12 @@ pub struct RegistrationStruct{
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UserStruct{
     pub id: String,
+    pub hash: String,
     pub email: String,
     pub password: String,
     pub salt: String,
     pub role: String,
+    pub active: bool,
 }
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TokenStruct {

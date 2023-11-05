@@ -5,5 +5,7 @@ written in Rust:
 - User authorization
 - Registration
 - Login
+- password reset/forgot
 - Email verification
 - JWT verification
+

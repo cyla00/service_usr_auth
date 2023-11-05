@@ -1,7 +1,7 @@
 use crate::structs::{RegistrationStruct, UserStruct, TokenClaimStruct, TokenStruct, ErrMsgStruct, SuccMsgStruct};
 use crate::password_manager::{password_hashing, password_verification};
 use crate::jwt_verification::jwt_verification;
-use crate::mailer::{send_registration_email};
+use crate::mailer::{user_verification_email};
 
 use axum::headers::authorization::Bearer;
 use axum::{
@@ -49,6 +49,12 @@ pub async fn route_login(State(db): State<Database>, TypedHeader(auth): TypedHea
                 };
                 return (StatusCode::UNAUTHORIZED, Err(Json(err_msg)))
             }
+            else if !user.active {
+                let err_msg = ErrMsgStruct {
+                    err_msg: "Verify your account before connecting".to_string()
+                };
+                return (StatusCode::UNAUTHORIZED, Err(Json(err_msg)))
+            }
             else {
 
                 let token_expiration = get_current_timestamp() + 10 * 1000;
@@ -91,12 +97,15 @@ pub async fn route_registration(State(db): State<Database>, Json(payload): Json<
     let collection_name:&str = "users";
     let hashed_password = password_hashing(payload.password.to_string());
     let new_user_id:Uuid = Uuid::new_v4();
+    let new_user_hash:Uuid = Uuid::new_v4();
     let user: UserStruct = UserStruct {
         id: new_user_id.to_string(),
+        hash: new_user_hash.to_string(),
         email: payload.email.clone(),
         password: hashed_password.0,
         salt: hashed_password.1.to_string(),
         role: "user".to_string(),
+        active: false,
     };
     let db_collection = db.collection(collection_name);
     match db_collection.find_one(doc! {"email": user.email.clone()}, None).await {
@@ -122,10 +131,19 @@ pub async fn route_registration(State(db): State<Database>, Json(payload): Json<
                 }
                 Ok(_) => {
                     let platform_name = env::var("PLATFORM_NAME").unwrap();
+                    let platform_host = env::var("PLATFORM_HOST").unwrap();
                     let email_auth_host = env::var("EMAIL_CLIENT_HOST").unwrap();
                     let auth_email_user = env::var("EMAIL_CLIENT_USER").unwrap();
                     let email_auth_pass = env::var("EMAIL_CLIENT_PASS").unwrap();
-                    let mailer = send_registration_email(auth_email_user, email_auth_pass, email_auth_host, payload.email, platform_name).await;
+                    let mailer = user_verification_email(
+                        auth_email_user, 
+                        email_auth_pass, 
+                        email_auth_host, 
+                        payload.email, 
+                        platform_name, 
+                        new_user_hash.to_string(), 
+                        platform_host
+                    ).await;
     
                     match mailer {
                         Ok(_) => {
@@ -148,10 +166,48 @@ pub async fn route_registration(State(db): State<Database>, Json(payload): Json<
 }
 
 pub async fn jwt_auth(TypedHeader(auth): TypedHeader<Authorization<Bearer>>) -> StatusCode {
+
     let token = auth.token();
     let verification = jwt_verification(token.to_string());
     match verification {
         Ok(_) => StatusCode::OK,
         Err(_) => StatusCode::UNAUTHORIZED,
+    }
+}
+
+pub async fn verify_account(State(db): State<Database>, TypedHeader(auth): TypedHeader<Authorization<Bearer>>) -> (StatusCode, Result<Json<SuccMsgStruct>, Json<ErrMsgStruct>>) {
+    let collection_name:&str = "users";
+    let hash = auth.token().to_string();
+    let db_collection:Collection<UserStruct> = db.collection(collection_name);
+    match db_collection.find_one(doc! {"hash": &hash}, None).await {
+        Err(_) => {
+            let err_msg = ErrMsgStruct {
+                err_msg: "An error occurred, retry later".to_string()
+            };
+            return (StatusCode::BAD_GATEWAY, Err(Json(err_msg)))
+        }
+        Ok(None) => {
+            let err_msg = ErrMsgStruct {
+                err_msg: "An error occurred, retry later".to_string()
+            };
+            return (StatusCode::BAD_GATEWAY, Err(Json(err_msg)))
+        }
+        Ok(Some(_)) => {
+            let new_hash = Uuid::new_v4();
+            match db_collection.update_one(doc! {"hash": &hash}, doc! {"$set": {"hash": new_hash.to_string(), "active": true}}, None).await {
+                Err(_) => {
+                    let err_msg = ErrMsgStruct {
+                        err_msg: "An error occurred, retry later".to_string()
+                    };
+                    return (StatusCode::BAD_GATEWAY, Err(Json(err_msg)))
+                }
+                Ok(_) => {
+                    let succ_msg = SuccMsgStruct {
+                        succ_msg: "Account verified".to_string()
+                    };
+                    return (StatusCode::OK, Ok(Json(succ_msg)))
+                }
+            }
+        }
     }
 }

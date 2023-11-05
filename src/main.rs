@@ -20,13 +20,13 @@ async fn main() {
 
     // loading env vars
     dotenv().ok();
-    let _db_host = env::var("DB_HOST").unwrap();
-    let _db_port = env::var("DB_PORT").unwrap();
-    let _db_name = env::var("DB_NAME").unwrap();
+    let db_host = env::var("DB_HOST").unwrap();
+    let db_port = env::var("DB_PORT").unwrap();
+    let db_name = env::var("DB_NAME").unwrap();
 
     // db connection
-    let client = Client::with_uri_str(format!("mongodb://{}:{}", _db_host, _db_port)).await.unwrap();
-    let db = client.database(format!("{}", _db_name).as_str());
+    let client = Client::with_uri_str(format!("mongodb://{}:{}", db_host, db_port)).await.unwrap();
+    let db = client.database(format!("{}", db_name).as_str());
     println!("database connected");
 
     let config_filename = "config.toml";
@@ -51,7 +51,8 @@ async fn main() {
     let app = Router::new()
         .route("/login", post(routes::route_login))
         .route("/registration", post(routes::route_registration))
-        .route("/test", post(routes::jwt_auth))
+        .route("/jwt-auth", post(routes::jwt_auth))
+        .route("/verify-account", post(routes::verify_account))
         .with_state(db);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
