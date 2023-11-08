@@ -1,7 +1,7 @@
-use crate::structs::{RegistrationStruct, UserStruct, TokenClaimStruct, TokenStruct, ErrMsgStruct, SuccMsgStruct};
+use crate::structs::{RegistrationStruct, UserStruct, TokenClaimStruct, TokenStruct, ErrMsgStruct, SuccMsgStruct, UserEmailStruct};
 use crate::password_manager::{password_hashing, password_verification};
 use crate::jwt_verification::jwt_verification;
-use crate::mailer::{user_verification_email};
+use crate::mailer::{user_verification_email, password_recovery_email};
 
 use axum::headers::authorization::Bearer;
 use axum::{
@@ -206,6 +206,74 @@ pub async fn verify_account(State(db): State<Database>, TypedHeader(auth): Typed
                         succ_msg: "Account verified".to_string()
                     };
                     return (StatusCode::OK, Ok(Json(succ_msg)))
+                }
+            }
+        }
+    }
+}
+
+pub async fn request_password_recovery_email(State(db): State<Database>, Json(payload): Json<UserEmailStruct>) -> (StatusCode, Result<Json<SuccMsgStruct>, Json<ErrMsgStruct>>){
+
+    let collection_name:&str = "users";
+    let db_collection:Collection<UserStruct> = db.collection(collection_name);
+
+    if &payload.email.is_empty() | !is_email(&payload.email) {
+        let err_msg: ErrMsgStruct = ErrMsgStruct {
+            err_msg: "Provide a valid email".to_string()
+        };
+        return (StatusCode::BAD_REQUEST, Err(Json(err_msg)))
+    }
+
+    match db_collection.find_one(doc! {"email": &payload.email}, None).await {
+        Err(_) => {
+            let err_msg = ErrMsgStruct {
+                err_msg: "An error occurred, retry later".to_string()
+            };
+            (StatusCode::BAD_GATEWAY, Err(Json(err_msg)))
+        }
+        Ok(None) => {
+            let err_msg = ErrMsgStruct {
+                err_msg: "Incorrect credentials".to_string()
+            };
+            (StatusCode::BAD_REQUEST, Err(Json(err_msg)))
+        }
+        Ok(Some(user)) => {
+
+            let platform_name = env::var("PLATFORM_NAME").unwrap();
+            let platform_host = env::var("PLATFORM_HOST").unwrap();
+            let email_auth_host = env::var("EMAIL_CLIENT_HOST").unwrap();
+            let auth_email_user = env::var("EMAIL_CLIENT_USER").unwrap();
+            let email_auth_pass = env::var("EMAIL_CLIENT_PASS").unwrap();
+
+            if !user.active {
+                let err_msg: ErrMsgStruct = ErrMsgStruct {
+                    err_msg: "Activate your account before proceeding".to_string()
+                };
+                return (StatusCode::BAD_REQUEST, Err(Json(err_msg)))
+            }
+
+            let mailer = password_recovery_email(
+                email_auth_host, 
+                auth_email_user, 
+                email_auth_pass, 
+                platform_host, 
+                payload.email, 
+                platform_name, 
+                user.hash
+            ).await;
+
+            match mailer {
+                Ok(_) => {
+                    let succ_msg: SuccMsgStruct = SuccMsgStruct {
+                        succ_msg: "Recovery email sent".to_string()
+                    };
+                    (StatusCode::OK, Ok(Json(succ_msg)))
+                },
+                Err(_) => {
+                    let err_msg: ErrMsgStruct = ErrMsgStruct {
+                        err_msg: "An error occurred, please retry later".to_string()
+                    };
+                    (StatusCode::BAD_GATEWAY, Err(Json(err_msg)))
                 }
             }
         }

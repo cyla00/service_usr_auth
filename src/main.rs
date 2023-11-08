@@ -9,7 +9,7 @@ use axum::{routing::{get, post, delete, put}, Router, extract::{State, FromRef}}
 use std::net::SocketAddr;
 #[allow(unused_imports)]
 use mongodb::{Client, options::ClientOptions, error::Result, bson::doc, Database};
-use structs::{Data};
+use structs::Data;
 use dotenv::dotenv;
 use std::env;
 use std::fs;
@@ -53,6 +53,7 @@ async fn main() {
         .route("/registration", post(routes::route_registration))
         .route("/jwt-auth", post(routes::jwt_auth))
         .route("/verify-account", post(routes::verify_account))
+        .route("/pass-recovery-email", post(routes::request_password_recovery_email))
         .with_state(db);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));

@@ -37,6 +37,12 @@ pub struct UserStruct{
     pub role: String,
     pub active: bool,
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct UserEmailStruct {
+    pub email: String,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TokenStruct {
     pub token: String,
